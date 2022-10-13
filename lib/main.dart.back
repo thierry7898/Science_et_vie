@@ -1,0 +1,135 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' show get;
+import 'dart:convert';
+
+class Livres {
+  final String reference; // voir si late necessaire
+  final String numero, illustration, sommaire, possession, etat, estimation;
+  Livres({
+    required this.reference,
+    required this.numero,
+    required this.illustration,
+    required this.sommaire,
+    required this.possession,
+    required this.etat,
+    required this.estimation,
+  });
+  factory Livres.fromJson(Map<String, dynamic> jsonData) {
+    return Livres(
+      reference: jsonData['reference'],
+      numero: jsonData['numero'],
+      illustration: jsonData['illustration'],
+      sommaire: jsonData['sommaire'],
+      possession: jsonData['possession'],
+      etat: jsonData['etat'],
+      estimation: jsonData['estimation'],
+    );
+  }
+}
+
+class CustomListView extends StatelessWidget {
+  final List<Livres> livres;
+
+  CustomListView(this.livres);
+
+  Widget build(context) {
+    return ListView.builder(
+      itemCount: livres.length,
+      itemBuilder: (context, int currentIndex) {
+        return createViewItem(livres[currentIndex], context);
+      },
+    );
+  }
+
+  Widget createViewItem(Livres livres, BuildContext context) {
+    return ListTile(
+      title: Card(
+        elevation: 5.0,
+        child: Container(
+          decoration: BoxDecoration(border: Border.all(color: Colors.orange)),
+          padding: const EdgeInsets.all(20.0),
+          margin: const EdgeInsets.all(20.0),
+          child: Column(
+            children: <Widget>[
+              Padding(
+                child: Image.network(livres.illustration),
+                padding: const EdgeInsets.only(bottom: 8.0),
+              ),
+              Row(children: <Widget>[
+                Padding(
+                    padding: const EdgeInsets.all(1.0),
+                    child: Text(
+                      livres.numero,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.right,
+                    )),
+                const Text(" | "),
+                Padding(
+                    padding: const EdgeInsets.all(1.0),
+                    child: Text(
+                      livres.sommaire,
+                      style: const TextStyle(fontStyle: FontStyle.italic),
+                      textAlign: TextAlign.right,
+                    )),
+              ]),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+//Future is n object representing a delayed computation.
+Future<List<Livres>> downloadJSON() async {
+  String jsonEndpoint = "https://www.savemysunday.com/s&v/";
+
+  final response = await get(Uri.parse(jsonEndpoint));
+
+  if (response.statusCode == 200) {
+    List livres = json.decode(response.body);
+    return livres.map((livres) => Livres.fromJson(livres)).toList();
+  } else
+    throw Exception('We were not able to successfully download the json data.');
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      theme: ThemeData(
+        primarySwatch: Colors.deepOrange,
+      ),
+      home: Scaffold(
+        appBar: AppBar(title: const Text('MySQL Images Text')),
+        body: Center(
+          //FutureBuilder is a widget that builds itself based on the latest snapshot
+          // of interaction with a Future.
+          child: FutureBuilder<List<Livres>>(
+            future: downloadJSON(),
+            //we pass a BuildContext and an AsyncSnapshot object which is an
+            //Immutable representation of the most recent interaction with
+            //an asynchronous computation.
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                List<Livres> livres = snapshot.data;
+                return CustomListView(livres);
+              } else if (snapshot.hasError) {
+                return Text('${snapshot.error}');
+              }
+              //return  a circular progress indicator.
+              return CircularProgressIndicator();
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+void main() {
+  runApp(MyApp());
+}
+//end
